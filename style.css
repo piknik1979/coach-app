@@ -1,0 +1,140 @@
+:root {
+    --primary: #2563eb;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.app-header {
+    background: white;
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 24px;
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.app-header p {
+    margin: 0;
+    font-size: 11px;
+    font-weight: bold;
+    opacity: 0.5;
+    text-transform: uppercase;
+}
+
+.view {
+    display: none;
+    padding: 15px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.view.active {
+    display: block;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.menu-item {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f1f5f9;
+}
+
+.menu-item:active {
+    background: #f1f5f9;
+    transform: scale(0.98);
+}
+
+.menu-item i {
+    font-size: 28px;
+    margin-right: 15px;
+}
+
+.brief-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-left: 6px solid var(--primary);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.s-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+}
+
+.s-title {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 5px 0;
+}
+
+.s-desc {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-opt {
+    flex: 1;
+    background: #eff6ff;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--primary);
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-weight: bold;
+    padding: 10px 0;
+    font-size: 16px;
+    cursor: pointer;
+}
