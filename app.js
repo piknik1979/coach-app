@@ -2,6 +2,7 @@
 const supabaseClient = supabase.createClient(CONFIG.SB_URL, CONFIG.SB_KEY);
 
 let currentLang = 'en';
+let lastOpenedCity = null; // Zmienna pomocnicza do odświeżania języka "w locie"
 const i18n = { en: TRANSLATIONS_EN, pl: TRANSLATIONS_PL };
 
 /**
@@ -23,7 +24,13 @@ function changeLang(langCode) {
     const menu = document.getElementById('lang-menu');
     if (menu) menu.classList.remove('show');
     
+    // Aktualizacja stałych tekstów UI
     updateUI();
+    
+    // Jeśli użytkownik ma otwarty konkretny briefing, przerysuj go natychmiast w nowym języku
+    if (lastOpenedCity && document.getElementById('view-briefing').classList.contains('active')) {
+        renderBriefing(lastOpenedCity);
+    }
 }
 
 // Zamykanie menu po kliknięciu poza obszar dropdownu
@@ -122,7 +129,7 @@ async function loadCities(regionKey) {
 }
 
 /**
- * WYSZUKIWANIE I LISTA MIAST
+ * WYSZUKIWANIE
  */
 
 const searchInput = document.getElementById('city-search');
@@ -152,7 +159,7 @@ function renderCityList(data) {
     container.innerHTML = '';
 
     if (data.length === 0) {
-        container.innerHTML = '<div style="padding:20px; text-align:center; opacity:0.6;">No results</div>';
+        container.innerHTML = `<div style="padding:20px; text-align:center; opacity:0.6;">${i18n[currentLang].no_results_for}</div>`;
         return;
     }
 
@@ -170,10 +177,11 @@ function renderCityList(data) {
  */
 
 function renderBriefing(city) {
+    lastOpenedCity = city; // Zapamiętaj miasto do zmiany języka
     const t = i18n[currentLang];
     const isPl = (currentLang === 'pl');
 
-    // Wybór wersji językowej z bazy (priorytet kolumn _pl dla Polaków)
+    // Pobieranie treści z priorytetem kolumn językowych
     const display = {
         s1t: (isPl && city.step1_title_pl) ? city.step1_title_pl : (city.step1_title || ""),
         s1d: (isPl && city.step1_desc_pl) ? city.step1_desc_pl : (city.step1_desc || ""),
@@ -186,47 +194,41 @@ function renderBriefing(city) {
     const cityNameDisplay = document.getElementById('city-name-display');
     if (cityNameDisplay) cityNameDisplay.innerText = city.name;
 
-    // Satelitarna mapa na żywo
     const mapUrl = `https://maps.google.com/maps?q=${city.lat},${city.lng}&t=k&z=17&ie=UTF8&iwloc=&output=embed`;
 
     const stepsBox = document.getElementById('briefing-steps');
     if (stepsBox) {
         stepsBox.innerHTML = `
-            <!-- Mapa wizualna -->
             <div style="width:100%; height:200px; border-radius:12px; overflow:hidden; margin-bottom:20px; border:1px solid #e2e8f0;">
                 <iframe width="100%" height="100%" frameborder="0" src="${mapUrl}"></iframe>
             </div>
             
-            <!-- Przyciski akcji dla kierowcy -->
             <div style="margin-bottom: 20px; display: flex; gap: 10px;">
                 <button onclick="window.open('https://www.google.com/maps?q=${city.lat},${city.lng}', '_blank')" 
                         style="flex: 2; background: #3b82f6; color: white; border: none; padding: 14px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 15px;">
-                    🗺️ NAWIGUJ DO PUNKTU
+                    ${isPl ? '🗺️ NAWIGUJ DO PUNKTU' : '🗺️ NAVIGATE TO POINT'}
                 </button>
                 
                 ${city.street_view_url ? `
                     <button onclick="window.open('${city.street_view_url}', '_blank')" 
                             style="flex: 1; background: #f1f5f9; color: #3b82f6; border: 1px solid #cbd5e1; padding: 14px; border-radius: 10px; font-weight: 700; cursor: pointer;">
-                        📸 FOTO
+                        ${isPl ? '📸 FOTO' : '📸 PHOTO'}
                     </button>
                 ` : ''}
             </div>
 
-            <!-- Karta 1: Drop-off -->
             <div class="brief-card">
                 <span class="s-label">${t.step1_label}</span>
                 <span class="s-title">${display.s1t}</span>
                 <p class="s-desc">${display.s1d}</p>
             </div>
 
-            <!-- Karta 2: Parking -->
             <div class="brief-card" style="border-left-color: #64748b;">
                 <span class="s-label">${t.step2_label}</span>
                 <span class="s-title">${display.s2t}</span>
                 <p class="s-desc">${display.s2d}</p>
             </div>
 
-            <!-- Karta 3: Zaplecze -->
             <div class="brief-card" style="border-left-color: #22c55e;">
                 <span class="s-label">${t.step3_label}</span>
                 <span class="s-title">${display.s3t}</span>
@@ -237,5 +239,5 @@ function renderBriefing(city) {
     showView('view-briefing');
 }
 
-// Start aplikacji
+// Inicjalizacja przy startu
 updateUI();
