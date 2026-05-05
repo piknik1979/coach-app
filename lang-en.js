@@ -1,0 +1,33 @@
+const TRANSLATIONS_EN = {
+    header_sub: "Driver Intelligence Hub",
+    search_placeholder: "Search city...",
+    menu_briefings_title: "City Access Guides",
+    menu_briefings_desc: "Drop-offs, parking & instructions",
+    menu_pitstop_title: "Pit Stop",
+    menu_pitstop_desc: "Waste disposal & services",
+    pitstop_alert: "Feature coming soon",
+    back_to_menu: "← Menu",
+    back: "← Back",
+    browse_regions: "Select Region",
+    regions: {
+        "Greater London": "Greater London",
+        "West Midlands": "West Midlands",
+        "North West": "North West",
+        "Yorkshire": "Yorkshire",
+        "South West": "South West",
+        "North East": "North East",
+        "East Midlands": "East Midlands",
+        "South": "South Coast"
+    },
+    search_results: "Search Results",
+    operational_briefing: "Driver Access Instructions",
+    step1_label: "1. Set-down / Pick-up Point",
+    step2_label: "2. Coach Parking",
+    step3_label: "3. Facilities",
+    default_step1_title: "No point data",
+    default_step1_desc: "Follow local signage.",
+    no_results_for: "No results for",
+    loading_protocols: "Loading data...",
+    searching: "Searching...",
+    connection_failed: "Connection failed"
+};

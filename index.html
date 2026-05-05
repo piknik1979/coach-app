@@ -7,66 +7,65 @@
     <title>CoachWay - Driver Intelligence</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Import słowników - muszą być przed app.js -->
+    <script src="lang-pl.js"></script>
+    <script src="lang-en.js"></script>
 </head>
 
 <body>
 
     <div class="app-header">
-        <h1>CoachWay</h1>
-        <p>Driver Intelligence Hub</p>
+        <div class="header-content">
+            <div style="text-align: left;">
+                <h1>CoachWay</h1>
+                <p id="ui-header-sub"></p>
+            </div>
+
+            <div class="lang-dropdown">
+                <div id="lang-current" onclick="toggleLangMenu()">🇬🇧</div>
+                <div id="lang-menu" class="lang-menu">
+                    <div class="lang-option" onclick="changeLang('en')"><span>🇬🇧</span> English</div>
+                    <div class="lang-option" onclick="changeLang('pl')"><span>🇵🇱</span> Polski</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- SEARCH BAR (Always visible in main views) -->
-    <div id="search-container" style="padding: 10px 15px; background: white; border-bottom: 1px solid #e2e8f0;">
-        <input type="text" id="city-search" placeholder="Quick search (e.g. London, Bristol...)"
-            style="width: 100%; padding: 12px; border-radius: 10px; border: 2px solid #cbd5e1; font-size: 16px; box-sizing: border-box; outline: none;">
+    <div id="search-container">
+        <input type="text" id="city-search">
     </div>
 
     <!-- VIEW: MAIN MENU -->
     <div id="view-main" class="view active">
         <div class="menu-item" onclick="showView('view-regions')">
             <i>🏙️</i>
-            <div>
-                <b>City Briefings</b><br>
-                <span>Drop-offs, parking & protocols</span>
-            </div>
+            <div><b id="ui-menu-brief-title"></b><br><span id="ui-menu-brief-desc"></span></div>
         </div>
-
-        <div class="menu-item" onclick="alert('Pit Stop feature coming soon')">
+        <div class="menu-item" onclick="handlePitStop()">
             <i>⛽</i>
-            <div>
-                <b>Pit Stop</b><br>
-                <span>Toilet drops & service stations</span>
-            </div>
+            <div><b id="ui-menu-pit-title"></b><br><span id="ui-menu-pit-desc"></span></div>
         </div>
     </div>
 
     <!-- VIEW: REGIONS -->
     <div id="view-regions" class="view">
-        <button class="back-btn" onclick="showView('view-main')">← Back to Menu</button>
-        <h2 class="section-title">Browse by Region</h2>
-        <div class="menu-item" onclick="loadCities('Greater London')"><b>London & M25</b></div>
-        <div class="menu-item" onclick="loadCities('West Midlands')"><b>West Midlands</b></div>
-        <div class="menu-item" onclick="loadCities('North West')"><b>North West England</b></div>
-        <div class="menu-item" onclick="loadCities('Yorkshire')"><b>Yorkshire</b></div>
-        <div class="menu-item" onclick="loadCities('South West')"><b>South West</b></div>
-        <div class="menu-item" onclick="loadCities('North East')"><b>North East</b></div>
-        <div class="menu-item" onclick="loadCities('South')"><b>South Coast</b></div>
+        <button class="back-btn" onclick="showView('view-main')" id="ui-back-main"></button>
+        <h2 class="section-title" id="ui-browse-title"></h2>
+        <div id="region-list"></div>
     </div>
 
-    <!-- VIEW: CITY LIST / SEARCH RESULTS -->
+    <!-- VIEW: CITY LIST -->
     <div id="view-cities" class="view">
-        <button class="back-btn" onclick="showView('view-regions')">← Back</button>
-        <h2 id="reg-name" class="section-title">Cities</h2>
+        <button class="back-btn" onclick="showView('view-regions')" id="ui-back-reg"></button>
+        <h2 id="reg-name" class="section-title"></h2>
         <div id="city-list-container"></div>
     </div>
 
-    <!-- VIEW: BRIEFING DETAIL -->
+    <!-- VIEW: BRIEFING -->
     <div id="view-briefing" class="view">
-        <button class="back-btn" onclick="closeBriefing()">← Back to List</button>
-        <h2 id="city-name-display" style="margin-bottom:5px;">City Name</h2>
-        <p style="margin:0 0 20px 0; color:#64748b; font-size:13px; font-weight:600; text-transform: uppercase;">
-            Operational Briefing</p>
+        <button class="back-btn" onclick="closeBriefing()" id="ui-back-brief"></button>
+        <h2 id="city-name-display"></h2>
+        <p id="ui-op-brief" class="op-brief-label"></p>
         <div id="briefing-steps"></div>
     </div>
 
