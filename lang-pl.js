@@ -17,7 +17,8 @@ const TRANSLATIONS_PL = {
         "South West": "South West",
         "North East": "North East",
         "East Midlands": "East Midlands",
-        "South": "South Coast"
+        "South": "South Coast",
+        "Isle of Wight": "Isle of Wight", // DODANE
     },
     search_results: "Wyniki wyszukiwania",
     operational_briefing: "Instrukcja Dojazdu i Postoju",

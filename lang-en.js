@@ -17,7 +17,8 @@ const TRANSLATIONS_EN = {
         "South West": "South West",
         "North East": "North East",
         "East Midlands": "East Midlands",
-        "South": "South Coast"
+        "South": "South Coast",
+        "Isle of Wight": "Isle of Wight",
     },
     search_results: "Search Results",
     operational_briefing: "Driver Access Instructions",
