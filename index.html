@@ -6,10 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CoachWay - Driver Intelligence</title>
     <link rel="stylesheet" href="style.css">
+    <!-- SDK Supabase musi być w head, aby app.js mógł z niego korzystać -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Import słowników - muszą być przed app.js -->
-    <script src="lang-pl.js"></script>
-    <script src="lang-en.js"></script>
 </head>
 
 <body>
@@ -69,12 +67,22 @@
         <div id="briefing-steps"></div>
     </div>
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
     <footer
         style="margin-top: 40px; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 13px;">
-        <p>© 2026 Tomasz Pikniczka</p>
+        <p>© 2026 Tomasz Pikniczka | My Production</p>
     </footer>
+
+    <!-- LOGIKA APLIKACJI - KOLEJNOŚĆ JEST KLUCZOWA -->
+    <!-- 1. Najpierw konfiguracja (klucze API) -->
+    <script src="config.js?v=1.1"></script>
+
+    <!-- 2. Potem tłumaczenia -->
+    <script src="lang-en.js?v=1.1"></script>
+    <script src="lang-pl.js?v=1.1"></script>
+
+    <!-- 3. Na samym końcu główny kod aplikacji -->
+    <script src="app.js?v=1.1"></script>
+
 </body>
 
 </html>
