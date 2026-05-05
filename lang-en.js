@@ -1,6 +1,6 @@
 const TRANSLATIONS_EN = {
     header_sub: "Driver Intelligence Hub",
-    search_placeholder: "Search city...",
+    search_placeholder: "Search city, region or attraction...",
     menu_briefings_title: "City Access Guides",
     menu_briefings_desc: "Drop-offs, parking & instructions",
     menu_pitstop_title: "Pit Stop",
@@ -10,15 +10,24 @@ const TRANSLATIONS_EN = {
     back: "← Back",
     browse_regions: "Select Region",
     regions: {
+        // England
         "Greater London": "Greater London",
+        "South East": "South East England",
+        "South West": "South West England",
         "West Midlands": "West Midlands",
-        "North West": "North West",
-        "Yorkshire": "Yorkshire",
-        "South West": "South West",
-        "North East": "North East",
+        "North West": "North West England",
+        "North East": "North East England",
+        "Yorkshire": "Yorkshire & Humber",
         "East Midlands": "East Midlands",
-        "South": "South Coast",
+        "East of England": "East of England",
+        
+        // Special / Islands
         "Isle of Wight": "Isle of Wight",
+        
+        // UK Nations
+        "Scotland": "Scotland",
+        "Wales": "Wales",
+        "Northern Ireland": "Northern Ireland"
     },
     search_results: "Search Results",
     operational_briefing: "Driver Access Instructions",

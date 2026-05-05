@@ -1,6 +1,6 @@
 const TRANSLATIONS_PL = {
     header_sub: "Centrum Informacji Kierowcy",
-    search_placeholder: "Szukaj miasta...",
+    search_placeholder: "Szukaj miasta, regionu lub atrakcji...",
     menu_briefings_title: "Wjazd do Miast",
     menu_briefings_desc: "Zatoczki, parkingi i instrukcje",
     menu_pitstop_title: "Pit Stop",
@@ -10,15 +10,24 @@ const TRANSLATIONS_PL = {
     back: "← Powrót",
     browse_regions: "Wybierz Region",
     regions: {
+        // Anglia
         "Greater London": "Londyn i okolice",
+        "South East": "Anglia Południowo-Wschodnia",
+        "South West": "Anglia Południowo-Zachodnia",
         "West Midlands": "West Midlands",
-        "North West": "North West",
-        "Yorkshire": "Yorkshire",
-        "South West": "South West",
-        "North East": "North East",
+        "North West": "Anglia Północno-Zachodnia",
+        "North East": "Anglia Północno-Wschodnia",
+        "Yorkshire": "Yorkshire i Humber",
         "East Midlands": "East Midlands",
-        "South": "South Coast",
-        "Isle of Wight": "Isle of Wight", // DODANE
+        "East of England": "Anglia Wschodnia",
+        
+        // Specjalne / Wyspy
+        "Isle of Wight": "Wyspa Wight",
+        
+        // Kraje UK
+        "Scotland": "Szkocja",
+        "Wales": "Walia",
+        "Northern Ireland": "Irlandia Północna"
     },
     search_results: "Wyniki wyszukiwania",
     operational_briefing: "Instrukcja Dojazdu i Postoju",
