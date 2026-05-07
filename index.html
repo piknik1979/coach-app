@@ -2,17 +2,19 @@
 <html lang="en">
 
 <head>
-    <!-- PWA i Ikonki -->
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" href="icon-512.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon-512.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CoachWay - Driver Intelligence</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CoachWay">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <link rel="icon" type="image/png" href="icon-512.png">
+    <meta name="theme-color" content="#1e293b">
+
     <link rel="stylesheet" href="style.css">
-    <!-- SDK Supabase musi być w head, aby app.js mógł z niego korzystać -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -39,7 +41,6 @@
         <input type="text" id="city-search">
     </div>
 
-    <!-- VIEW: MAIN MENU -->
     <div id="view-main" class="view active">
         <div class="menu-item" onclick="showView('view-regions')">
             <i>🏙️</i>
@@ -51,21 +52,18 @@
         </div>
     </div>
 
-    <!-- VIEW: REGIONS -->
     <div id="view-regions" class="view">
         <button class="back-btn" onclick="showView('view-main')" id="ui-back-main"></button>
         <h2 class="section-title" id="ui-browse-title"></h2>
         <div id="region-list"></div>
     </div>
 
-    <!-- VIEW: CITY LIST -->
     <div id="view-cities" class="view">
         <button class="back-btn" onclick="showView('view-regions')" id="ui-back-reg"></button>
         <h2 id="reg-name" class="section-title"></h2>
         <div id="city-list-container"></div>
     </div>
 
-    <!-- VIEW: BRIEFING -->
     <div id="view-briefing" class="view">
         <button class="back-btn" onclick="closeBriefing()" id="ui-back-brief"></button>
         <h2 id="city-name-display"></h2>
@@ -78,16 +76,10 @@
         <p>© 2026 Tomasz Pikniczka | My Production</p>
     </footer>
 
-    <!-- LOGIKA APLIKACJI - KOLEJNOŚĆ JEST KLUCZOWA -->
-    <!-- 1. Najpierw konfiguracja (klucze API) -->
-    <script src="config.js?v=1.1"></script>
-
-    <!-- 2. Potem tłumaczenia -->
-    <script src="lang-en.js?v=1.1"></script>
-    <script src="lang-pl.js?v=1.1"></script>
-
-    <!-- 3. Na samym końcu główny kod aplikacji -->
-    <script src="app.js?v=1.1"></script>
+    <script src="config.js?v=1.2"></script>
+    <script src="lang-en.js?v=1.2"></script>
+    <script src="lang-pl.js?v=1.2"></script>
+    <script src="app.js?v=1.2"></script>
 
 </body>
 

@@ -1,6 +1,7 @@
 {
-    "name": "CoachWay Driver Hub",
+    "name": "CoachWay Driver Intelligence",
     "short_name": "CoachWay",
+    "description": "Smart Hub for Coach Drivers",
     "start_url": "index.html",
     "display": "standalone",
     "background_color": "#ffffff",
@@ -9,7 +10,8 @@
         {
             "src": "icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any maskable"
         }
     ]
 }
