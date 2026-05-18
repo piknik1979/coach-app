@@ -159,6 +159,72 @@ h1 {
     margin-bottom: 20px;
 }
 
+/* INTERACTIVE MAP SYSTEM STYLES */
+#map {
+    height: 420px;
+    width: 100%;
+    border-radius: 14px;
+    margin-top: 10px;
+    position: relative;
+    z-index: 10;
+    /* Wymuszenie warstwy klikalnej nad tłami HTML */
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+}
+
+.map-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    padding: 4px 0;
+    position: relative;
+    z-index: 20;
+    /* Filtry zawsze dostępne nad mapą */
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.filter-btn.active {
+    background: #1e293b;
+    color: white;
+    border-color: #1e293b;
+    font-weight: bold;
+}
+
+/* EMERGENCY CARD */
+.emergency-card {
+    background: #fff5f5;
+    border: 2px solid #feb2b2;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.sos-btn {
+    background: #e53e3e;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    width: 100%;
+    border: none;
+    font-weight: bold;
+    font-size: 16px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
 /* BRIEFING CARDS */
 .brief-card {
     background: white;

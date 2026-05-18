@@ -6,16 +6,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CoachWay - Driver Intelligence</title>
 
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json?v=2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="CoachWay">
     <link rel="apple-touch-icon" href="icon-512.png">
     <link rel="icon" type="image/png" href="icon-512.png">
     <meta name="theme-color" content="#1e293b">
 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* Szybkie poprawki dla nowych widoków */
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .map-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .filter-btn {
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+            background: white;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn.active {
+            background: #1e293b;
+            color: white;
+            border-color: #1e293b;
+        }
+
+        .emergency-card {
+            background: #fff5f5;
+            border: 2px solid #feb2b2;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .sos-btn {
+            background: #e53e3e;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            width: 100%;
+            border: none;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 <body>
@@ -37,37 +95,101 @@
         </div>
     </div>
 
-    <div id="search-container">
-        <input type="text" id="city-search">
+    <div id="search-container" style="position: relative; max-width: 500px; margin: 0 auto; padding: 10px 20px;">
+        <input type="text" id="city-search" placeholder="Search city..."
+            style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 15px;">
+
+        <div id="search-results-wrapper"
+            style="display: none; position: absolute; top: 100%; left: 20px; right: 20px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); z-index: 9999; max-height: 250px; overflow-y: auto; padding: 8px;">
+            <div id="search-results-list"></div>
+        </div>
     </div>
 
     <div id="view-main" class="view active">
         <div class="menu-item" onclick="showView('view-regions')">
             <i>🏙️</i>
-            <div><b id="ui-menu-brief-title"></b><br><span id="ui-menu-brief-desc"></span></div>
+            <div><b id="ui-menu-brief-title">City Access</b><br><span id="ui-menu-brief-desc">Entrance & Guides</span>
+            </div>
         </div>
+
+        <div class="menu-item" onclick="showView('view-map')">
+            <i>🗺️</i>
+            <div><b id="ui-menu-map-title">Interactive Map</b><br><span id="ui-menu-map-desc">Parking, Drop-offs,
+                    Service</span></div>
+        </div>
+
         <div class="menu-item" onclick="handlePitStop()">
             <i>⛽</i>
-            <div><b id="ui-menu-pit-title"></b><br><span id="ui-menu-pit-desc"></span></div>
+            <div><b id="ui-menu-pit-title">Pit Stop</b><br><span id="ui-menu-pit-desc">Fuel & Breaks</span></div>
+        </div>
+
+        <div class="menu-item" onclick="showView('view-handbook')">
+            <i>📕</i>
+            <div><b id="ui-menu-handbook-title">Handbook</b><br><span id="ui-menu-handbook-desc">Regulations &
+                    Tacho</span></div>
+        </div>
+
+        <div class="menu-item" onclick="showView('view-emergency')">
+            <i>🆘</i>
+            <div><b id="ui-menu-emergency-title">Emergency</b><br><span id="ui-menu-emergency-desc">SOS &
+                    Breakdown</span></div>
         </div>
     </div>
 
     <div id="view-regions" class="view">
-        <button class="back-btn" onclick="showView('view-main')" id="ui-back-main"></button>
-        <h2 class="section-title" id="ui-browse-title"></h2>
+        <button class="back-btn" id="ui-back-main" onclick="showView('view-main')">← Back</button>
+        <h2 class="section-title" id="ui-browse-title">Regions</h2>
         <div id="region-list"></div>
     </div>
 
+    <div id="view-map" class="view">
+        <button class="back-btn" id="ui-back-map" onclick="showView('view-main')">← Back</button>
+        <h2 class="section-title" id="ui-map-title">Interactive Map</h2>
+        <div class="map-filters">
+            <button id="filter-all" class="filter-btn active" onclick="filterMap('all')">All</button>
+            <button id="filter-parking" class="filter-btn" onclick="filterMap('parking')">🅿️ Parking</button>
+            <button id="filter-dropoff" class="filter-btn" onclick="filterMap('dropoff')">📍 Drop-off</button>
+            <button id="filter-service" class="filter-btn" onclick="filterMap('service')">🛠️ Service</button>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <div id="view-handbook" class="view">
+        <button class="back-btn" id="ui-back-handbook" onclick="showView('view-main')">← Back</button>
+        <h2 class="section-title" id="ui-handbook-title">Driver's Handbook</h2>
+        <div class="menu-item">
+            <i>⚖️</i>
+            <div><b>Tacho Rules</b><br><span>EU Driving hours summary</span></div>
+        </div>
+        <div class="menu-item">
+            <i>🌍</i>
+            <div><b>Country Rules</b><br><span>Speed limits & Tolls</span></div>
+        </div>
+    </div>
+
+    <div id="view-emergency" class="view">
+        <button class="back-btn" id="ui-back-emergency" onclick="showView('view-main')">← Back</button>
+        <h2 class="section-title" id="ui-emergency-title">Emergency Hub</h2>
+        <div class="emergency-card">
+            <p id="ui-emergency-text">Need assistance? Share your location with the service team.</p>
+            <button class="sos-btn" id="ui-sos-btn" onclick="shareLocation()">📍 SHARE MY LOCATION</button>
+        </div>
+        <div style="margin-top: 20px;">
+            <p><b id="ui-quick-call">Quick Call:</b></p>
+            <a href="tel:112" class="menu-item"><i>🚑</i> 112 Emergency</a>
+            <a href="tel:000000000" class="menu-item"><i>🛠️</i> 24h Service (DAF/MB)</a>
+        </div>
+    </div>
+
     <div id="view-cities" class="view">
-        <button class="back-btn" onclick="showView('view-regions')" id="ui-back-reg"></button>
+        <button class="back-btn" id="ui-back-reg" onclick="showView('view-regions')">← Back</button>
         <h2 id="reg-name" class="section-title"></h2>
         <div id="city-list-container"></div>
     </div>
 
     <div id="view-briefing" class="view">
-        <button class="back-btn" onclick="closeBriefing()" id="ui-back-brief"></button>
+        <button class="back-btn" id="ui-back-brief" onclick="closeBriefing()">← Back</button>
         <h2 id="city-name-display"></h2>
-        <p id="ui-op-brief" class="op-brief-label"></p>
         <div id="briefing-steps"></div>
     </div>
 
@@ -76,10 +198,10 @@
         <p>© 2026 Tomasz Pikniczka | My Production</p>
     </footer>
 
-    <script src="config.js?v=1.2"></script>
-    <script src="lang-en.js?v=1.2"></script>
-    <script src="lang-pl.js?v=1.2"></script>
-    <script src="app.js?v=1.2"></script>
+    <script src="config.js?v=2"></script>
+    <script src="lang-en.js?v=2"></script>
+    <script src="lang-pl.js?v=2"></script>
+    <script src="app.js?v=2"></script>
 
 </body>
 
