@@ -42,7 +42,8 @@ h1 {
 }
 
 /* LANG DROPDOWN */
-.lang-dropdown {
+/* LANG DROPDOWN */
+.lang-selector {
     position: relative;
 }
 
@@ -69,15 +70,7 @@ h1 {
     z-index: 2000;
 }
 
-.lang-menu-content a {
-    color: #334155;
-    padding: 10px 14px;
-    text-decoration: none;
-    display: block;
-    font-size: 13px;
-}
-
-.lang-menu-content a:hover {
+.lang-menu-content div:hover {
     background: #f1f5f9;
 }
 

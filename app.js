@@ -4,12 +4,13 @@ let map;
 let markers = [];
 let allLocations = []; // Tablica przechowująca wszystkie pobrane lokalizacje z bazy
 let currentMapFilter = 'all'; // Śledzenie wybranego filtru mapy
-let markersGroup; // Globalna grupa warstw Leaflet do łatwego filtrowania
+let markersGroup; // Globalna grupa warstw Leaflet (teraz jako MarkerClusterGroup)
 
 // Zmienne śledzące aktualny stan
 let currentRegion = null;
 let currentID = null; // Śledzenie ID wybranej lokalizacji
 let currentItem = null; // Przechowywanie całego obiektu aktywnej lokalizacji
+let currentSubOptions = []; // Tablica przechowująca warianty podrzędne (dzieci) aktywnego miejsca
 let cameFromSearch = false; // Śledzenie, czy użytkownik przeszedł przez wyszukiwarkę
 
 /**
@@ -23,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert("Błąd konfiguracji: Brak pliku config.js");
         return;
     }
-
     try {
         if (typeof supabase !== 'undefined' && supabase.createClient) {
             _supabase = supabase.createClient(CONFIG.SB_URL, CONFIG.SB_KEY);
@@ -137,7 +137,7 @@ function changeLang(lang) {
         loadLocations(currentRegion);
     }
     if (document.getElementById('view-briefing').classList.contains('active') && currentItem) {
-        renderBriefingUI(currentItem);
+        renderBriefingUI();
     }
 }
 
@@ -239,7 +239,8 @@ async function loadLocations(region) {
         const { data, error } = await _supabase
             .from('locations')
             .select('id, name, category')
-            .eq('region', region);
+            .eq('region', region)
+            .is('parent_id', null);
 
         if (error) throw error;
 
@@ -284,16 +285,41 @@ async function loadBriefing(id) {
     container.innerHTML = '<div style="padding:20px; text-align:center; color:#64748b;">Loading instructions...</div>';
 
     try {
-        const { data, error } = await _supabase
+        const { data: clickedItem, error: clickedError } = await _supabase
             .from('locations')
             .select('*')
             .eq('id', id)
             .single();
 
-        if (error) throw error;
+        if (clickedError) throw clickedError;
 
-        currentItem = data; // Zapisz obiekt globalnie na potrzeby zmiany języka
-        renderBriefingUI(data);
+        let mainLocation = clickedItem;
+        let parentId = clickedItem.id;
+
+        if (clickedItem.parent_id) {
+            parentId = clickedItem.parent_id;
+            const { data: parentData, error: parentError } = await _supabase
+                .from('locations')
+                .select('*')
+                .eq('id', parentId)
+                .single();
+            
+            if (!parentError && parentData) {
+                mainLocation = parentData;
+            }
+        }
+
+        const { data: subOptions, error: subError } = await _supabase
+            .from('locations')
+            .select('*')
+            .eq('parent_id', parentId);
+
+        if (subError) throw subError;
+
+        currentSubOptions = (subOptions && subOptions.length > 0) ? subOptions : [mainLocation];
+        currentItem = mainLocation; 
+
+        renderBriefingUI();
 
     } catch (err) {
         console.error("Błąd pobierania instrukcji:", err);
@@ -301,79 +327,117 @@ async function loadBriefing(id) {
     }
 }
 
-function renderBriefingUI(data) {
+function renderBriefingUI() {
     const container = document.getElementById('briefing-steps');
     const title = document.getElementById('city-name-display');
-    if (title) title.innerText = data.name;
-
-    // Wybór odpowiedniej wersji językowej prosto z kolumn bazy danych
-    const isPl = currentLang === 'pl';
-    const s1_title = isPl ? (data.step1_title_pl || data.step1_title) : data.step1_title;
-    const s1_desc = isPl ? (data.step1_desc_pl || data.step1_desc) : data.step1_desc;
+    if (!container || !currentItem) return;
     
-    const s2_title = isPl ? (data.step2_title_pl || data.step2_title) : data.step2_title;
-    const s2_desc = isPl ? (data.step2_desc_pl || data.step2_desc) : data.step2_desc;
+    if (title) title.innerText = currentItem.name;
 
-    const s3_title = isPl ? (data.step3_title_pl || data.step3_title) : data.step3_title;
-    const s3_desc = isPl ? (data.step3_desc_pl || data.step3_desc) : data.step3_desc;
+    const isPl = currentLang === 'pl';
+    container.innerHTML = '';
 
-    // Generowanie sekcji z udogodnieniami (Checkboxy z bazy)
-    let amenitiesHtml = '<div class="amenities-container" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; font-size:13px;">';
-    amenitiesHtml += `<div>☕ ${isPl ? 'Darmowa kawa' : 'Free Coffee'}: <b>${data.free_coffee ? '✅' : '❌'}</b></div>`;
-    amenitiesHtml += `<div>🚽 ${isPl ? 'Toaleta' : 'Toilet Access'}: <b>${data.toilet_access ? '✅' : '❌'}</b></div>`;
-    amenitiesHtml += `<div>🚿 ${isPl ? 'Prysznic' : 'Shower'}: <b>${data.shower ? '✅' : '❌'}</b></div>`;
-    amenitiesHtml += `<div>💰 ${isPl ? 'Płatne' : 'Paid'}: <b>${data.is_paid ? '✅' : '❌'}</b></div>`;
-    amenitiesHtml += '</div>';
+    const options = (typeof currentSubOptions !== 'undefined' && currentSubOptions.length > 0) ? currentSubOptions : [currentItem];
 
-    // Przycisk szybkiej nawigacji oraz Street View jeśli istnieje URL
-    const navButtonsHtml = `
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <a href="https://www.google.com/maps/search/?api=1&query=${data.lat},${data.lng}" target="_blank" style="flex:1; text-align:center; background:#16a34a; padding:10px; border-radius:8px; text-decoration:none; color:white; font-size:13px; font-weight:600;">
-                🚗 Google Maps Navigation
-            </a>
-            ${data.street_view_url ? `
-                <a href="${data.street_view_url}" target="_blank" style="flex:1; text-align:center; background:#2563eb; padding:10px; border-radius:8px; text-decoration:none; color:white; font-size:13px; font-weight:600;">
-                    👀 Street View
+    options.forEach((opt, index) => {
+        const s1_title = isPl ? (opt.step1_title_pl || opt.step1_title) : opt.step1_title;
+        const s1_desc = isPl ? (opt.step1_desc_pl || opt.step1_desc) : opt.step1_desc;
+        
+        const s2_title = isPl ? (opt.step2_title_pl || opt.step2_title) : opt.step2_title;
+        const s2_desc = isPl ? (opt.step2_desc_pl || opt.step2_desc) : opt.step2_desc;
+
+        const s3_title = isPl ? (opt.step3_title_pl || opt.step3_title) : opt.step3_title;
+        const s3_desc = isPl ? (opt.step3_desc_pl || opt.step3_desc) : opt.step3_desc;
+
+        const dict = isPl ? TRANSLATIONS_PL : TRANSLATIONS_EN;
+        const catLabel = (dict && dict.categories && dict.categories[opt.category]) ? dict.categories[opt.category] : opt.category;
+
+        const accordionItem = document.createElement('div');
+        accordionItem.className = 'accordion-item';
+        accordionItem.style.cssText = 'margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);';
+
+        const isFirst = index === 0;
+        const displayName = opt.address ? opt.address : opt.name;
+
+        let amenitiesHtml = '<div class="amenities-container" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; font-size:13px; color:#334155;">';
+        amenitiesHtml += `<div>☕ ${isPl ? 'Darmowa kawa' : 'Free Coffee'}: <b>${opt.free_coffee ? '✅' : '❌'}</b></div>`;
+        amenitiesHtml += `<div>🚽 ${isPl ? 'Toaleta' : 'Toilet Access'}: <b>${opt.toilet_access ? '✅' : '❌'}</b></div>`;
+        amenitiesHtml += `<div>🚿 ${isPl ? 'Prysznic' : 'Shower'}: <b>${opt.shower ? '✅' : '❌'}</b></div>`;
+        amenitiesHtml += `<div>💰 ${isPl ? 'Płatne' : 'Paid'}: <b>${opt.is_paid ? '✅' : '❌'}</b></div>`;
+        amenitiesHtml += '</div>';
+
+        const navButtonsHtml = `
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <a href="https://www.google.com/maps/search/?api=1&query=${opt.lat},${opt.lng}" target="_blank" style="flex:1; text-align:center; background:#16a34a; padding:10px; border-radius:8px; text-decoration:none; color:white; font-size:13px; font-weight:600;">
+                    🚗 Google Maps Navigation
                 </a>
-            ` : ''}
-        </div>
-    `;
-
-    container.innerHTML = `
-        ${amenitiesHtml}
-        ${navButtonsHtml}
-
-        ${s1_title || s1_desc ? `
-            <div class="brief-card step-1" style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-                <h3>${s1_title || '1. Drop-off & Pick-up'}</h3>
-                <div style="margin: 10px 0; color: #334155;">${s1_desc || ''}</div>
+                ${opt.street_view_url ? `
+                    <a href="${opt.street_view_url}" target="_blank" style="flex:1; text-align:center; background:#2563eb; padding:10px; border-radius:8px; text-decoration:none; color:white; font-size:13px; font-weight:600;">
+                        👀 Street View
+                    </a>
+                ` : ''}
             </div>
-        ` : ''}
+        `;
 
-        ${s2_title || s2_desc ? `
-            <div class="brief-card step-2" style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-                <h3>${s2_title || '2. Coach Parking'}</h3>
-                <div style="margin: 10px 0; color: #334155;">${s2_desc || ''}</div>
+        accordionItem.innerHTML = `
+            <div class="accordion-header" onclick="toggleAccordion(this)" style="padding: 15px; background: #f8fafc; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; border-bottom: ${isFirst ? '1px solid #e2e8f0' : 'none'};">
+                <span style="font-size: 14px; color: #1e293b;">📌 ${displayName} (${catLabel || opt.category || 'Option'})</span>
+                <span class="accordion-icon" style="transition: transform 0.2s; color: #64748b;">${isFirst ? '▼' : '▶'}</span>
             </div>
-        ` : ''}
+            <div class="accordion-content" style="padding: 15px; display: ${isFirst ? 'block' : 'none'}; background: #ffffff;">
+                ${amenitiesHtml}
+                ${navButtonsHtml}
 
-        ${s3_title || s3_desc ? `
-            <div class="brief-card step-3" style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <h3>${s3_title || '3. Facilities & Info'}</h3>
-                <div style="margin: 10px 0; color: #334155;">${s3_desc || ''}</div>
+                ${s1_title || s1_desc ? `
+                    <div class="brief-card step-1" style="background: #fafafa; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
+                        <h3 style="margin: 0 0 5px 0; font-size: 14px; color: #1e293b;">${s1_title || '1. Drop-off & Pick-up'}</h3>
+                        <div style="margin: 5px 0; color: #334155; font-size: 13px; line-height: 1.4;">${s1_desc || ''}</div>
+                    </div>
+                ` : ''}
+
+                ${s2_title || s2_desc ? `
+                    <div class="brief-card step-2" style="background: #fafafa; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
+                        <h3 style="margin: 0 0 5px 0; font-size: 14px; color: #1e293b;">${s2_title || '2. Coach Parking'}</h3>
+                        <div style="margin: 5px 0; color: #334155; font-size: 13px; line-height: 1.4;">${s2_desc || ''}</div>
+                    </div>
+                ` : ''}
+
+                ${s3_title || s3_desc ? `
+                    <div class="brief-card step-3" style="background: #fafafa; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h3 style="margin: 0 0 5px 0; font-size: 14px; color: #1e293b;">${s3_title || '3. Facilities & Info'}</h3>
+                        <div style="margin: 5px 0; color: #334155; font-size: 13px; line-height: 1.4;">${s3_desc || ''}</div>
+                    </div>
+                ` : ''}
             </div>
-        ` : ''}
-    `;
+        `;
+        container.appendChild(accordionItem);
+    });
 }
+
+window.toggleAccordion = function(header) {
+    const content = header.nextElementSibling;
+    const icon = header.querySelector('.accordion-icon');
+    
+    if (content.style.display === 'block') {
+        content.style.display = 'none';
+        header.style.borderBottom = 'none';
+        icon.innerText = '▶';
+    } else {
+        content.style.display = 'block';
+        header.style.borderBottom = '1px solid #e2e8f0';
+        icon.innerText = '▼';
+    }
+};
 
 function closeBriefing() {
     currentID = null;
     currentItem = null;
+    currentSubOptions = [];
     showView('view-cities');
 }
 
 /**
- * --- INTERAKTYWNA MAPA (LEAFLET) ---
+ * --- INTERAKTYWNA MAPA (LEAFLET + KLASTERYZACJA) ---
  */
 async function initMap() {
     if (map) {
@@ -381,7 +445,7 @@ async function initMap() {
         return;
     }
 
-    console.log("Inicjalizacja mapy Leaflet...");
+    console.log("Inicjalizacja mapy Leaflet z obsługą klastrów...");
     map = L.map('map').setView([54.5, -3.0], 6);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -389,7 +453,23 @@ async function initMap() {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    markersGroup = L.layerGroup().addTo(map);
+    // Konfiguracja klastrów z małym promieniem łączenia, zapobiegającym zlewaniu miast
+    markersGroup = L.markerClusterGroup({
+        maxClusterRadius: 45,
+        disableClusteringAtZoom: 14,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false
+    });
+    map.addLayer(markersGroup);
+
+    // UX: Kliknięcie w mapę automatycznie chowa podpowiedzi wyszukiwarki mapy
+    map.on('click', () => {
+        const resultsContainer = document.getElementById('map-search-results');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '';
+            resultsContainer.style.display = 'none';
+        }
+    });
 
     await fetchAllLocationsForMap();
     renderMapMarkers();
@@ -418,18 +498,17 @@ function renderMapMarkers() {
     allLocations.forEach(poi => {
         if (!poi.lat || !poi.lng) return;
 
-        // Domyślne mapowanie kolorów na podstawie kategorii z Twojej bazy
-        let markerColor = '#2563eb'; // niebieski
+        let markerColor = '#2563eb'; 
         let categoryText = poi.category;
 
         if (poi.category === 'parking') {
-            markerColor = '#16a34a'; // zielony
+            markerColor = '#16a34a'; 
             categoryText = (dict && dict.category_parking) ? dict.category_parking : 'Parking';
         } else if (poi.category === 'dropoff') {
-            markerColor = '#eab308'; // żółty
+            markerColor = '#eab308'; 
             categoryText = (dict && dict.category_dropoff) ? dict.category_dropoff : 'Drop-off';
         } else if (poi.category === 'service' || poi.category === 'ferry') {
-            markerColor = '#db2777'; // różowy
+            markerColor = '#db2777'; 
             categoryText = (dict && dict.category_service) ? dict.category_service : 'Service';
         }
 
@@ -467,10 +546,9 @@ function renderMapMarkers() {
     });
 }
 
-// Funkcja pozwalająca przejść z Popup'u mapy bezpośrednio do instrukcji tekstowej
 function openBriefingFromMap(id) {
     currentID = id;
-    cameFromSearch = true; // Flaga, żeby "Wstecz" wiedziało dokąd wrócić
+    cameFromSearch = true; 
     showView('view-briefing');
     loadBriefing(id);
 }
@@ -493,13 +571,16 @@ function filterMap(type) {
 }
 
 /**
- * --- WYSZUKIWARKA (LIVE SEARCH) ---
+ * --- WYSZUKIWARKA (LIVE SEARCH GŁÓWNY) ---
  */
 function initSearch() {
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#main-search') && !e.target.closest('.search-results-dropdown')) {
             document.querySelectorAll('.search-results-dropdown').forEach(wrapper => {
-                wrapper.style.display = 'none';
+                // Ukrywamy listę podpowiedzi menu bocznego/głównego
+                if(wrapper.id !== 'map-search-results') {
+                    wrapper.style.display = 'none';
+                }
             });
         }
     });
@@ -571,6 +652,83 @@ async function handleSearch(query) {
     } catch (err) {
         console.error("Błąd podczas wyszukiwania:", err);
     }
+}
+
+/**
+ * --- WYSZUKIWARKA DEDYKOWANA DLA WIDOKU MAPY ---
+ */
+function handleMapSearch(query) {
+    const resultsContainer = document.getElementById('map-search-results');
+    if (!query.trim()) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    const q = query.toLowerCase();
+    
+    const filtered = allLocations.filter(loc => 
+        (loc.name && loc.name.toLowerCase().includes(q)) ||
+        (loc.region && loc.region.toLowerCase().includes(q)) ||
+        (loc.address && loc.address.toLowerCase().includes(q))
+    );
+
+    if (filtered.length === 0) {
+        resultsContainer.innerHTML = `<div class="search-result-item">No results found / Brak wyników</div>`;
+        resultsContainer.style.display = 'block';
+        return;
+    }
+
+    resultsContainer.innerHTML = '';
+    filtered.slice(0, 5).forEach(loc => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        
+        let typeLabel = loc.category ? loc.category.toUpperCase() : 'POINT';
+        
+        item.innerHTML = `
+            <div>
+                <strong>${loc.name}</strong>
+                <div style="font-size: 12px; color: #64748b;">${loc.region || ''}</div>
+            </div>
+            <span class="search-result-type">${typeLabel}</span>
+        `;
+        
+        item.onclick = () => {
+            selectLocationOnMap(loc);
+            resultsContainer.innerHTML = '';
+            resultsContainer.style.display = 'none';
+            document.getElementById('map-search').value = loc.name;
+        };
+        
+        resultsContainer.appendChild(item);
+    });
+
+    resultsContainer.style.display = 'block';
+}
+
+/**
+ * --- INTELIGENTNY ZOOM DLA KIEROWCY ---
+ */
+function selectLocationOnMap(loc) {
+    if (!map || !loc.lat || !loc.lng) return;
+
+    let targetZoom = 16;
+    const nameLower = loc.name.toLowerCase();
+    
+    if (nameLower.includes('region') || nameLower.includes('greater') || nameLower.includes('county')) {
+        targetZoom = 9;  
+    } else if (loc.category === 'parent' || nameLower.includes('city center') || nameLower.includes('hub')) {
+        targetZoom = 12; 
+    }
+
+    map.setView([loc.lat, loc.lng], targetZoom);
+
+    markers.forEach(m => {
+        if (m.getLatLng().lat === loc.lat && m.getLatLng().lng === loc.lng) {
+            m.openPopup();
+        }
+    });
 }
 
 /**

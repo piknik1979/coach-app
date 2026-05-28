@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CoachWay - Driver Intelligence</title>
 
-    <link rel="manifest" href="manifest.json?v=2">
+    <link class="manifest" href="manifest.json?v=2">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link class="apple-touch-icon" href="icon-512.png">
@@ -29,12 +29,33 @@
             display: flex;
             gap: 8px;
             margin-bottom: 12px;
+            margin-top: 12px;
             overflow-x: auto;
             padding-bottom: 4px;
         }
 
+        .filter-btn {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            color: #475569;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
         .search-wrapper {
             position: relative;
+            width: 100%;
             margin-bottom: 15px;
         }
 
@@ -42,10 +63,11 @@
             position: absolute;
             top: 100%;
             left: 0;
-            right: 0;
+            width: 100%;
             background: white;
             border: 1px solid #e2e8f0;
-            border-radius: 8px;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             z-index: 2000;
             max-height: 250px;
@@ -54,16 +76,14 @@
         }
 
         .search-result-item {
-            padding: 10px 15px;
-            cursor: pointer;
+            padding: 12px 16px;
             border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        .search-result-item:last-child {
-            border-bottom: none;
+            font-size: 14px;
+            transition: background 0.1s;
         }
 
         .search-result-item:hover {
@@ -71,10 +91,12 @@
         }
 
         .search-result-type {
-            font-size: 11px;
+            font-size: 10px;
+            text-transform: uppercase;
             background: #e2e8f0;
             padding: 2px 6px;
             border-radius: 4px;
+            font-weight: bold;
             color: #475569;
         }
     </style>
@@ -82,129 +104,146 @@
 
 <body>
 
-    <button id="global-back-fab" class="fab-back-btn" onclick="handleGlobalBack()">←</button>
+    <button id="global-back-fab" class="fab-back-btn" onclick="handleGlobalBack()">⬅</button>
 
     <header class="app-header">
         <div class="header-content">
-            <div>
-                <h1 onclick="showView('view-menu')" style="cursor: pointer;">CoachWay</h1>
-                <p id="ui-header-sub">Driver Intelligence Hub</p>
+            <div class="header-container" onclick="showView('view-menu')" style="cursor: pointer;">
+                <h1>CoachWay</h1>
+                <p id="ui-header-sub">Driver Intelligence Node</p>
             </div>
-            <div class="lang-dropdown">
-                <button id="lang-current" onclick="toggleLangMenu()">🇬🇧 EN</button>
-                <div id="lang-menu" class="lang-menu-content">
-                    <a href="#" onclick="changeLang('en'); return false;">🇬🇧 English</a>
-                    <a href="#" onclick="changeLang('pl'); return false;">🇵🇱 Polski</a>
+            <div class="lang-selector">
+                <button class="lang-btn" id="lang-current" onclick="toggleLangMenu()">🇬🇧 EN</button>
+                <div class="lang-menu-content" id="lang-menu">
+                    <div onclick="changeLang('en')" style="padding: 10px 14px; cursor: pointer;">🇬🇧 English</div>
+                    <div onclick="changeLang('pl')" style="padding: 10px 14px; cursor: pointer;">🇵🇱 Polski</div>
                 </div>
             </div>
         </div>
     </header>
 
-    <div id="view-menu" class="view active">
-        <div class="search-wrapper">
-            <input type="text" id="main-search" placeholder="Search city, region or attraction..." oninput="handleSearch(this.value)">
-            <div id="search-results" class="search-results-dropdown"></div>
-        </div>
+    <main class="container">
 
-        <div class="menu-grid">
-            <div class="menu-card" onclick="showView('view-regions')">
-                <div class="menu-icon">🌍</div>
-                <h3 id="ui-menu-briefings-title">City Access Guides</h3>
-                <p id="ui-menu-briefings-desc">Drop-offs, parking & instructions</p>
+        <div id="view-menu" class="view active">
+            <div class="search-wrapper">
+                <input type="text" id="main-search" placeholder="Search city, station or region..." oninput="handleSearch(this.value)">
+                <div class="search-results-dropdown"></div>
             </div>
-            <div class="menu-card" onclick="showView('view-map')">
-                <div class="menu-icon">🗺️</div>
-                <h3 id="ui-menu-map-title">Interactive Map</h3>
-                <p id="ui-menu-map-desc">Parking, Drop-offs, Service</p>
+
+            <div class="grid-menu">
+                <div class="menu-card" onclick="showView('view-regions')">
+                    <div class="menu-icon">📋</div>
+                    <div>
+                        <h3 id="ui-menu-briefings-title">Station Briefings</h3>
+                        <p id="ui-menu-briefings-desc">Full arrival & layout guides</p>
+                    </div>
+                </div>
+
+                <div class="menu-card" onclick="showView('view-map')">
+                    <div class="menu-icon">🗺️</div>
+                    <div>
+                        <h3 id="ui-menu-map-title">Interactive Map</h3>
+                        <p id="ui-menu-map-desc">Live locations & routing</p>
+                    </div>
+                </div>
+
+                <div class="menu-card" onclick="showView('view-pitstop')">
+                    <div class="menu-icon">☕</div>
+                    <div>
+                        <h3 id="ui-menu-pitstop-title">Pitstop Finder</h3>
+                        <p id="ui-menu-pitstop-desc">Services, food & rest stops</p>
+                    </div>
+                </div>
+
+                <div class="menu-card" onclick="showView('view-handbook')">
+                    <div class="menu-icon">📕</div>
+                    <div>
+                        <h3 id="ui-menu-handbook-title">Driver Handbook</h3>
+                        <p id="ui-menu-handbook-desc">Regulations & UK road rules</p>
+                    </div>
+                </div>
+
+                <div class="menu-card emergency" onclick="showView('view-emergency')">
+                    <div class="menu-icon">⚠️</div>
+                    <div>
+                        <h3 id="ui-menu-emergency-title">Emergency SOS</h3>
+                        <p id="ui-menu-emergency-desc">Instant support & GPS broadcast</p>
+                    </div>
+                </div>
             </div>
-            <div class="menu-card" onclick="alert(currentLang === 'pl' ? TRANSLATIONS_PL.pitstop_alert : TRANSLATIONS_EN.pitstop_alert)">
-                <div class="menu-icon">⛽</div>
-                <h3 id="ui-menu-pitstop-title">Pit Stop</h3>
-                <p id="ui-menu-pitstop-desc">Waste disposal & services</p>
+        </div>
+
+        <div id="view-regions" class="view">
+            <h2 id="ui-browse-regions" class="section-title">Browse Regions</h2>
+            <div id="regions-container" class="list-container"></div>
+        </div>
+
+        <div id="view-cities" class="view">
+            <h2 id="reg-name" class="section-title">Region Name</h2>
+            <div id="city-list-container" class="grid-menu"></div>
+        </div>
+
+        <div id="view-briefing" class="view">
+            <h2 id="city-name-display" class="section-title" style="margin-bottom: 5px;">Loading...</h2>
+            <div id="briefing-steps"></div>
+        </div>
+
+        <div id="view-map" class="view">
+            <h2 id="ui-menu-map-title-static" class="section-title">Interactive Map</h2>
+            
+            <div class="search-wrapper">
+                <input type="text" id="map-search" placeholder="Search parking, city or region..." oninput="handleMapSearch(this.value)">
+                <div id="map-search-results" class="search-results-dropdown"></div>
             </div>
-            <div class="menu-card" onclick="showView('view-handbook')">
-                <div class="menu-icon">📕</div>
-                <h3 id="ui-menu-handbook-title">Handbook</h3>
-                <p id="ui-menu-handbook-desc">Regulations & Tacho</p>
+
+            <div class="map-filters">
+                <button class="filter-btn active" id="filter-all" onclick="filterMap('all')">All</button>
+                <button class="filter-btn" id="filter-parking" onclick="filterMap('parking')">Parking</button>
+                <button class="filter-btn" id="filter-dropoff" onclick="filterMap('dropoff')">Drop-off</button>
+                <button class="filter-btn" id="filter-service" onclick="filterMap('service')">Service</button>
             </div>
-            <div class="menu-card" onclick="showView('view-emergency')">
-                <div class="menu-icon">🚨</div>
-                <h3 id="ui-menu-emergency-title">Emergency</h3>
-                <p id="ui-menu-emergency-desc">SOS & Breakdown</p>
+            
+            <div id="map"></div>
+        </div>
+
+        <div id="view-emergency" class="view">
+            <h2 id="ui-static-emergency-title" class="section-title">Emergency SOS</h2>
+            <div class="emergency-panel" style="background: #fef2f2; border: 2px solid #ef4444; padding: 20px; border-radius: 12px; text-align: center;">
+                <p id="ui-emergency-text" style="color: #991b1b; font-weight: 600; font-size: 15px; margin-bottom: 20px;">
+                    Need immediate assistance? Broadcast your current GPS coordinates to dispatch or open secure routing.
+                </p>
+                <button id="ui-sos-btn" class="sos-main-btn" onclick="shareLocation()" style="background: #ef4444; color: white; border: none; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 50px; cursor: pointer; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4); width: 100%; margin-bottom: 15px;">
+                    🚨 SHARE MY POSITION
+                </button>
+                <a id="ui-quick-call" href="tel:0044123456789" style="display: block; text-decoration: none; background: #1e293b; color: white; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                    📞 Call Control Room
+                </a>
             </div>
         </div>
-    </div>
 
-    <div id="view-regions" class="view">
-        <h2 id="ui-browse-regions" class="section-title">Select Region</h2>
-        
-        <div class="search-container" style="padding: 10px 0; position: relative; margin-bottom: 15px;">
-            <input type="text" id="main-search" placeholder="Search for location or region..." oninput="handleSearch(this.value)" style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box;">
-            <div id="search-results" class="search-results-dropdown" style="position: absolute; left: 0; right: 0; background: white; z-index: 999; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+        <div id="view-pitstop" class="view">
+            <h2 class="section-title">Pitstop Finder</h2>
+            <p style="color: #64748b; text-align: center; padding: 20px;">Module arriving in next update.</p>
+        </div>
+        <div id="view-handbook" class="view">
+            <h2 class="section-title">Driver Handbook</h2>
+            <p style="color: #64748b; text-align: center; padding: 20px;">Regulations data base updating...</p>
         </div>
 
-        <div id="regions-container" class="menu-grid"></div>
-    </div>
-
-    <div id="view-map" class="view">
-        <h2 id="ui-menu-map-title-static" class="section-title">Interactive Map</h2>
-        <div class="map-filters">
-            <button class="filter-btn active" id="filter-all" onclick="filterMap('all')">All</button>
-            <button class="filter-btn" id="filter-parking" onclick="filterMap('parking')">Parking</button>
-            <button class="filter-btn" id="filter-dropoff" onclick="filterMap('dropoff')">Drop-off</button>
-            <button class="filter-btn" id="filter-service" onclick="filterMap('service')">Service</button>
-        </div>
-        <div id="map"></div>
-    </div>
-
-    <div id="view-handbook" class="view">
-        <h2 class="section-title">Driver Handbook</h2>
-        <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-            <h3>🇬🇧 UK Driving & Tacho Limits</h3>
-            <p><b>Daily Driving:</b> 9 hours (can be extended to 10 hours twice a week).</p>
-            <p><b>Breaks:</b> 45 minutes break after 4.5 hours of driving (can be split into 15m then 30m).</p>
-            <p><b>Daily Rest:</b> 11 hours (can be reduced to 9 hours three times between weekly rests).</p>
-            <p><b>Weekly Driving:</b> Max 56 hours. Max 90 hours in any two consecutive weeks.</p>
-        </div>
-        <div style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-            <h3>🇵🇱 Przepisy i Czas Pracy (Tacho)</h3>
-            <p><b>Dzienny czas jazdy:</b> 9 godzin (dwukrotnie w tygodniu do 10 godzin).</p>
-            <p><b>Przerwa:</b> 45 minut po 4.5 godzinach jazdy (lub dzielona: 15m i kolejne 30m).</p>
-            <p><b>Odpoczynek dzienny:</b> 11 godzin (skrócony do 9 godzin maksymalnie 3 razy).</p>
-            <p><b>Tygodniowy czas jazdy:</b> Max 56 godzin. Max 90 godzin w ciągu dwóch kolejnych tygodni.</p>
-        </div>
-    </div>
-
-    <div id="view-emergency" class="view">
-        <h2 class="section-title" id="ui-static-emergency-title">Emergency Hub</h2>
-        <div class="emergency-card" style="background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
-            <p id="ui-emergency-text">Need assistance? Share your location with the service team.</p>
-            <button class="sos-btn" id="ui-sos-btn" onclick="shareLocation()" style="background: #ef4444; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px;">📍 SHARE MY LOCATION</button>
-        </div>
-        <div style="margin-top: 20px;">
-            <p><b id="ui-quick-call">Quick Call:</b></p>
-            <a href="tel:112" class="menu-item" style="display: flex; align-items: center; padding: 12px; background: white; margin-bottom: 8px; border-radius: 8px; text-decoration: none; color: #1e293b; border: 1px solid #e2e8f0;"><i style="margin-right: 10px; font-style: normal;">🚑</i> 112 Emergency</a>
-            <a href="tel:000000000" class="menu-item" style="display: flex; align-items: center; padding: 12px; background: white; margin-bottom: 8px; border-radius: 8px; text-decoration: none; color: #1e293b; border: 1px solid #e2e8f0;"><i style="margin-right: 10px; font-style: normal;">🛠️</i> 24h Service (DAF/MB)</a>
-        </div>
-    </div>
-
-    <div id="view-cities" class="view">
-        <h2 id="reg-name" class="section-title"></h2>
-        <div id="city-list-container" class="menu-grid"></div>
-    </div>
-
-    <div id="view-briefing" class="view">
-        <h2 id="city-name-display" class="section-title"></h2>
-        <div id="briefing-steps"></div>
-    </div>
+    </main>
 
     <footer style="margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; padding: 20px 0; border-top: 1px solid #e2e8f0;">
         CoachWay App © 2026 - Designed for Coach Drivers
     </footer>
 
-    <!-- SKRYPTY – Uporządkowane i bez śmieci SQL -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script src="config.js"></script>
     <script src="lang-en.js"></script>
     <script src="lang-pl.js"></script>
