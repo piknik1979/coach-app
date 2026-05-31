@@ -125,11 +125,6 @@
     <main class="container">
 
         <div id="view-menu" class="view active">
-            <div class="search-wrapper">
-                <input type="text" id="main-search" placeholder="Search city, station or region..." oninput="handleSearch(this.value)">
-                <div class="search-results-dropdown"></div>
-            </div>
-
             <div class="grid-menu">
                 <div class="menu-card" onclick="showView('view-regions')">
                     <div class="menu-icon">📋</div>
@@ -174,11 +169,19 @@
         </div>
 
         <div id="view-regions" class="view">
+            <div class="search-wrapper">
+                <input type="text" class="main-search-input" placeholder="Search city, station or region..." oninput="handleSearch(this)">
+                <div class="search-results-dropdown"></div>
+            </div>
             <h2 id="ui-browse-regions" class="section-title">Browse Regions</h2>
             <div id="regions-container" class="list-container"></div>
         </div>
 
         <div id="view-cities" class="view">
+            <div class="search-wrapper">
+                <input type="text" class="main-search-input" placeholder="Search city, station or region..." oninput="handleSearch(this)">
+                <div class="search-results-dropdown"></div>
+            </div>
             <h2 id="reg-name" class="section-title">Region Name</h2>
             <div id="city-list-container" class="grid-menu"></div>
         </div>
