@@ -732,6 +732,32 @@ async function handleSearch(inputElement) {
 /**
  * --- WYSZUKIWARKA DEDYKOWANA DLA WIDOKU MAPY ---
  */
+function selectRegionOnMap(regionName) {
+  if (!map || !allLocations || allLocations.length === 0) return;
+
+  // Filtrujemy punkty należące wyłącznie do tego regionu, które mają poprawne współrzędne
+  const regionPoints = allLocations.filter(
+    (loc) => loc.region === regionName && loc.lat && loc.lng,
+  );
+
+  if (regionPoints.length === 0) return;
+
+  // Zbieramy współrzędne w tablicę formatu Leaflet [lat, lng]
+  const coordinates = regionPoints.map((loc) => [
+    parseFloat(loc.lat),
+    parseFloat(loc.lng),
+  ]);
+
+  // Używamy wbudowanej funkcji Leaflet, która automatycznie oblicza optymalny widok i przybliżenie
+  const bounds = L.latLngBounds(coordinates);
+  map.fitBounds(bounds, {
+    padding: [50, 50], // Bezpieczny margines od krawędzi ekranu w pikselach
+    maxZoom: 11, // Blokada, żeby nie przybliżyło zbyt blisko, jeśli w regionie jest mało punktów
+  });
+}
+/**
+ * --- WYSZUKIWARKA DEDYKOWANA DLA WIDOKU MAPY ---
+ */
 function handleMapSearch(query) {
   const resultsContainer = document.getElementById("map-search-results");
   if (!query.trim()) {
@@ -740,23 +766,56 @@ function handleMapSearch(query) {
     return;
   }
 
-  const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
+  resultsContainer.innerHTML = "";
 
-  const filtered = allLocations.filter(
+  // 1. Szukamy unikalnych regionów pasujących do frazy
+  const matchedRegions = [
+    ...new Set(
+      allLocations
+        .filter((loc) => loc.region && loc.region.toLowerCase().includes(q))
+        .map((loc) => loc.region),
+    ),
+  ];
+
+  // 2. Szukamy pojedynczych punktów (lokalizacji) pasujących do frazy
+  const filteredPoints = allLocations.filter(
     (loc) =>
       (loc.name && loc.name.toLowerCase().includes(q)) ||
-      (loc.region && loc.region.toLowerCase().includes(q)) ||
       (loc.address && loc.address.toLowerCase().includes(q)),
   );
 
-  if (filtered.length === 0) {
-    resultsContainer.innerHTML = `<div class="search-result-item">No results found / Brak wyników</div>`;
+  if (matchedRegions.length === 0 && filteredPoints.length === 0) {
+    resultsContainer.innerHTML = `<div class="search-result-item" style="color:#64748b; font-size:13px; text-align:center;">No results found / Brak wyników</div>`;
     resultsContainer.style.display = "block";
     return;
   }
 
-  resultsContainer.innerHTML = "";
-  filtered.slice(0, 5).forEach((loc) => {
+  // Dodajemy znalezione REGIONY na samą górę listy podpowiedzi
+  matchedRegions.slice(0, 3).forEach((regionName) => {
+    const item = document.createElement("div");
+    item.className = "search-result-item";
+    item.style.background = "#f0fdf4"; // Delikatny zielony akcent dla odróżnienia regionu
+
+    item.innerHTML = `
+            <div>
+                <strong style="color: #16a34a;">📍 ${regionName}</strong>
+                <div style="font-size: 11px; color: #15803d;">${currentLang === "pl" ? "Pokaż cały region" : "Show entire region"}</div>
+            </div>
+            <span class="search-result-type" style="background:#dcfce7; color:#16a34a;">REGION</span>
+        `;
+
+    item.onclick = () => {
+      selectRegionOnMap(regionName);
+      resultsContainer.innerHTML = "";
+      resultsContainer.style.display = "none";
+      document.getElementById("map-search").value = regionName;
+    };
+    resultsContainer.appendChild(item);
+  });
+
+  // Dodajemy pojedyncze PUNKTY (stacje, parkingi) poniżej regionów
+  filteredPoints.slice(0, 5).forEach((loc) => {
     const item = document.createElement("div");
     item.className = "search-result-item";
 
@@ -776,11 +835,37 @@ function handleMapSearch(query) {
       resultsContainer.style.display = "none";
       document.getElementById("map-search").value = loc.name;
     };
-
     resultsContainer.appendChild(item);
   });
 
   resultsContainer.style.display = "block";
+}
+
+/**
+ * --- DOPASOWANIE WIDOKU MAPY DLA CAŁEGO REGIONU ---
+ */
+function selectRegionOnMap(regionName) {
+  if (!map || !allLocations || allLocations.length === 0) return;
+
+  // Filtrujemy punkty należące wyłącznie do tego regionu, które mają poprawne współrzędne
+  const regionPoints = allLocations.filter(
+    (loc) => loc.region === regionName && loc.lat && loc.lng,
+  );
+
+  if (regionPoints.length === 0) return;
+
+  // Zbieramy współrzędne w tablicę formatu Leaflet [lat, lng]
+  const coordinates = regionPoints.map((loc) => [
+    parseFloat(loc.lat),
+    parseFloat(loc.lng),
+  ]);
+
+  // Używamy wbudowanej funkcji Leaflet, która automatycznie oblicza optymalny widok i przybliżenie
+  const bounds = L.latLngBounds(coordinates);
+  map.fitBounds(bounds, {
+    padding: [50, 50], // Bezpieczny margines od krawędzi ekranu w pikselach
+    maxZoom: 11, // Blokada, żeby nie przybliżyło zbyt blisko, jeśli w regionie jest mało punktów
+  });
 }
 
 /**
@@ -814,7 +899,6 @@ function selectLocationOnMap(loc) {
     }
   });
 }
-
 /**
  * --- SOS / GPS ---
  */
@@ -856,7 +940,6 @@ function shareLocation() {
     },
   );
 }
-
 /**
  * --- BEZPIECZNA REJESTRACJA SERVICE WORKERA (PWA) ---
  */
