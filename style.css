@@ -389,3 +389,13 @@ input[type="text"]:focus {
     transform: scale(0.92);
     background-color: #0f172a;
 }
+
+/* NOWE ROZSZERZENIE: ZIELONE WYRÓŻNIENIE DLA ZNALEZIONYCH REGIONÓW W WYSZUKIWARKACH */
+.search-result-item.highlight-green-search {
+    background-color: #f0fdf4 !important;
+    border-bottom: 1px solid #dcfce7 !important;
+}
+
+.search-result-item.highlight-green-search:hover {
+    background-color: #dcfce7 !important;
+}

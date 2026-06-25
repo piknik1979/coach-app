@@ -4,13 +4,13 @@ let map;
 let markers = [];
 let allLocations = []; // Tablica przechowująca wszystkie pobrane lokalizacje z bazy
 let currentMapFilter = "all"; // Śledzenie wybranego filtru mapy
-let markersGroup; // Globalna grupa warstw Leaflet (teraz jako MarkerClusterGroup)
+let markersGroup; // Globalna grupa warstw Leaflet (MarkerClusterGroup)
 
 // Zmienne śledzące aktualny stan
-let currentRegion = null;
+let currentRegion = null; // Przechowuje nazwę aktywnego regionu
 let currentID = null; // Śledzenie ID wybranej lokalizacji
 let currentItem = null; // Przechowywanie całego obiektu aktywnej lokalizacji
-let currentSubOptions = []; // Tablica przechowująca warianty podrzędne (dzieci) aktywnego miejsca
+let currentSubOptions = []; // Tablica przechowująca warianty podrzędne
 let cameFromSearch = false; // Śledzenie, czy użytkownik przeszedł przez wyszukiwarkę
 
 /**
@@ -20,9 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("CoachWay: Inicjalizacja systemu...");
 
   if (typeof CONFIG === "undefined") {
-    console.error(
-      "BŁĄD: Nie znaleziono obiektu CONFIG. Upewnij się, że stworzyłeś plik config.js lokalnie.",
-    );
+    console.error("BŁĄD: Nie znaleziono obiektu CONFIG. Upewnij się, że stworzyłeś plik config.js lokalnie.");
     alert("Błąd konfiguracji: Brak pliku config.js");
     return;
   }
@@ -39,18 +37,31 @@ document.addEventListener("DOMContentLoaded", () => {
       throw new Error("Nie udało się zainicjalizować obiektu Supabase.");
     }
 
-    console.log(
-      "CoachWay: Połączenie z Supabase (tabela locations) nawiązane.",
-    );
+    console.log("CoachWay: Połączenie z Supabase (tabela locations) nawiązane.");
   } catch (err) {
     console.error("Błąd podczas łączenia z Supabase:", err);
     alert("Błąd krytyczny: Brak połączenia z bazą danych.");
     return;
   }
 
+  // Wystawienie funkcji do obiektów globalnych dla obsługi atrybutów inline HTML (onclick, oninput)
+  window.showView = showView;
+  window.handleSearch = handleSearch;
+  window.handleMapSearch = handleMapSearch;
+  window.filterMap = filterMap;
+  window.toggleLangMenu = toggleLangMenu;
+  window.changeLang = changeLang;
+  window.handleGlobalBack = handleGlobalBack;
+  window.shareLocation = shareLocation;
+  window.openBriefingFromMap = openBriefingFromMap;
+  window.toggleAccordion = toggleAccordion;
+
   changeLang("en");
   initSearch();
   initServiceWorker();
+  
+  // Pobieramy dane w tle, aby wyszukiwarka główna miała natychmiastowy dostęp do regionów
+  fetchAllLocationsForMap(); 
 });
 
 /**
@@ -73,7 +84,7 @@ function showView(viewId) {
     if (viewId === "view-menu") {
       fabButton.style.display = "none";
     } else {
-      fabButton.style.display = "block";
+      fabButton.style.display = "flex";
     }
   }
 
@@ -103,8 +114,10 @@ function handleGlobalBack() {
       closeBriefing();
     }
   } else if (currentViewId === "view-cities") {
+    currentRegion = null; 
     showView("view-regions");
   } else {
+    currentRegion = null; 
     showView("view-menu");
   }
 }
@@ -139,16 +152,10 @@ function changeLang(lang) {
   if (document.getElementById("view-regions").classList.contains("active")) {
     loadRegions();
   }
-  if (
-    document.getElementById("view-cities").classList.contains("active") &&
-    currentRegion
-  ) {
+  if (document.getElementById("view-cities").classList.contains("active") && currentRegion) {
     loadLocations(currentRegion);
   }
-  if (
-    document.getElementById("view-briefing").classList.contains("active") &&
-    currentItem
-  ) {
+  if (document.getElementById("view-briefing").classList.contains("active") && currentItem) {
     renderBriefingUI();
   }
 }
@@ -162,8 +169,7 @@ function applyTranslations(dict) {
   txt("ui-header-sub", dict.header_sub);
 
   document.querySelectorAll(".main-search-input").forEach((input) => {
-    input.placeholder =
-      dict.search_placeholder || "Search city, station or region...";
+    input.placeholder = dict.search_placeholder || "Search city, station or region...";
   });
 
   txt("ui-menu-briefings-title", dict.menu_briefings_title);
@@ -191,43 +197,40 @@ function applyTranslations(dict) {
   txt("filter-service", dict.map_filter_service);
 }
 
-function t(key) {
-  const dict = currentLang === "en" ? TRANSLATIONS_EN : TRANSLATIONS_PL;
-  if (!dict) return key;
-  if (dict.db && dict.db[key]) return dict.db[key];
-  if (dict[key]) return dict[key];
-  return key;
-}
-
 /**
  * --- LOGIKA BAZY DANYCH (SUPABASE) ---
  */
 async function loadRegions() {
+  currentRegion = null; 
   const container = document.getElementById("regions-container");
   if (!container) return;
-  container.innerHTML =
-    '<div style="padding:20px; text-align:center; color:#64748b;">Loading regions...</div>';
+  container.innerHTML = '<div style="padding:20px; text-align:center; color:#64748b;">Loading regions...</div>';
 
   try {
-    const { data, error } = await _supabase
-      .from("locations")
-      .select("region")
-      .not("region", "is", null);
-
+    const { data, error } = await _supabase.from("locations").select("region");
     if (error) throw error;
 
-    const uniqueRegions = [...new Set(data.map((item) => item.region))].sort();
+    const uniqueRegions = [
+      ...new Set(
+        data
+          .map((item) => item.region)
+          .filter((r) => r !== null && r !== undefined && r.trim() !== "")
+      )
+    ].sort();
 
     container.innerHTML = "";
+    
+    if (uniqueRegions.length === 0) {
+      container.innerHTML = '<div style="padding:20px; text-align:center; color:#64748b;">No regions found in database.</div>';
+      return;
+    }
+
     uniqueRegions.forEach((region) => {
       const card = document.createElement("div");
       card.className = "menu-item";
 
       const dict = currentLang === "en" ? TRANSLATIONS_EN : TRANSLATIONS_PL;
-      const regionDisplayName =
-        dict && dict.regions && dict.regions[region]
-          ? dict.regions[region]
-          : region;
+      const regionDisplayName = dict && dict.regions && dict.regions[region] ? dict.regions[region] : region;
 
       card.innerHTML = `<i>📍</i> <span>${regionDisplayName}</span>`;
       card.onclick = () => {
@@ -240,8 +243,7 @@ async function loadRegions() {
     });
   } catch (err) {
     console.error("Błąd podczas ładowania regionów:", err);
-    container.innerHTML =
-      '<div style="color:red; padding:20px;">Error loading data.</div>';
+    container.innerHTML = '<div style="color:red; padding:20px;">Error loading data.</div>';
   }
 }
 
@@ -252,13 +254,10 @@ async function loadLocations(region) {
   const title = document.getElementById("reg-name");
   const dict = currentLang === "en" ? TRANSLATIONS_EN : TRANSLATIONS_PL;
 
-  if (title)
-    title.innerText =
-      dict && dict.regions && dict.regions[region]
-        ? dict.regions[region]
-        : region;
-  container.innerHTML =
-    '<div style="padding:20px; text-align:center; color:#64748b;">Loading locations...</div>';
+  if (title) {
+    title.innerText = dict && dict.regions && dict.regions[region] ? dict.regions[region] : region;
+  }
+  container.innerHTML = '<div style="padding:20px; text-align:center; color:#64748b;">Loading locations...</div>';
 
   try {
     const { data, error } = await _supabase
@@ -276,18 +275,10 @@ async function loadLocations(region) {
 
       let icon = "🏙️";
       if (item.category === "ferry") icon = "🚢";
-      if (
-        item.category === "attraction" ||
-        item.category === "tourism" ||
-        item.category === "castle"
-      )
-        icon = "🏰";
+      if (item.category === "attraction" || item.category === "tourism" || item.category === "castle") icon = "🏰";
       if (item.category === "parking") icon = "🅿️";
 
-      const catLabel =
-        dict && dict.categories && dict.categories[item.category]
-          ? dict.categories[item.category]
-          : item.category;
+      const catLabel = dict && dict.categories && dict.categories[item.category] ? dict.categories[item.category] : item.category;
 
       card.innerHTML = `
                 <div class="menu-icon">${icon}</div>
@@ -306,8 +297,7 @@ async function loadLocations(region) {
     });
   } catch (err) {
     console.error("Błąd ładowania lokalizacji:", err);
-    container.innerHTML =
-      '<div style="color:red; padding:20px;">Error loading locations.</div>';
+    container.innerHTML = '<div style="color:red; padding:20px;">Error loading locations.</div>';
   }
 }
 
@@ -315,8 +305,7 @@ async function loadBriefing(id) {
   const container = document.getElementById("briefing-steps");
   if (!container) return;
 
-  container.innerHTML =
-    '<div style="padding:20px; text-align:center; color:#64748b;">Loading instructions...</div>';
+  container.innerHTML = '<div style="padding:20px; text-align:center; color:#64748b;">Loading instructions...</div>';
 
   try {
     const { data: clickedItem, error: clickedError } = await _supabase
@@ -350,15 +339,13 @@ async function loadBriefing(id) {
 
     if (subError) throw subError;
 
-    currentSubOptions =
-      subOptions && subOptions.length > 0 ? subOptions : [mainLocation];
+    currentSubOptions = subOptions && subOptions.length > 0 ? subOptions : [mainLocation];
     currentItem = mainLocation;
 
     renderBriefingUI();
   } catch (err) {
     console.error("Błąd pobierania instrukcji:", err);
-    container.innerHTML =
-      '<div style="color:red; padding:20px;">Error loading details.</div>';
+    container.innerHTML = '<div style="color:red; padding:20px;">Error loading details.</div>';
   }
 }
 
@@ -372,43 +359,29 @@ function renderBriefingUI() {
   const isPl = currentLang === "pl";
   container.innerHTML = "";
 
-  const options =
-    typeof currentSubOptions !== "undefined" && currentSubOptions.length > 0
-      ? currentSubOptions
-      : [currentItem];
+  const options = typeof currentSubOptions !== "undefined" && currentSubOptions.length > 0 ? currentSubOptions : [currentItem];
 
   options.forEach((opt, index) => {
-    const s1_title = isPl
-      ? opt.step1_title_pl || opt.step1_title
-      : opt.step1_title;
+    const s1_title = isPl ? opt.step1_title_pl || opt.step1_title : opt.step1_title;
     const s1_desc = isPl ? opt.step1_desc_pl || opt.step1_desc : opt.step1_desc;
 
-    const s2_title = isPl
-      ? opt.step2_title_pl || opt.step2_title
-      : opt.step2_title;
+    const s2_title = isPl ? opt.step2_title_pl || opt.step2_title : opt.step2_title;
     const s2_desc = isPl ? opt.step2_desc_pl || opt.step2_desc : opt.step2_desc;
 
-    const s3_title = isPl
-      ? opt.step3_title_pl || opt.step3_title
-      : opt.step3_title;
+    const s3_title = isPl ? opt.step3_title_pl || opt.step3_title : opt.step3_title;
     const s3_desc = isPl ? opt.step3_desc_pl || opt.step3_desc : opt.step3_desc;
 
     const dict = isPl ? TRANSLATIONS_PL : TRANSLATIONS_EN;
-    const catLabel =
-      dict && dict.categories && dict.categories[opt.category]
-        ? dict.categories[opt.category]
-        : opt.category;
+    const catLabel = dict && dict.categories && dict.categories[opt.category] ? dict.categories[opt.category] : opt.category;
 
     const accordionItem = document.createElement("div");
     accordionItem.className = "accordion-item";
-    accordionItem.style.cssText =
-      "margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
+    accordionItem.style.cssText = "margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
 
     const isFirst = index === 0;
     const displayName = opt.address ? opt.address : opt.name;
 
-    let amenitiesHtml =
-      '<div class="amenities-container" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; font-size:13px; color:#334155;">';
+    let amenitiesHtml = '<div class="amenities-container" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:15px; background:#f8fafc; padding:12px; border-radius:8px; font-size:13px; color:#334155;">';
     amenitiesHtml += `<div>☕ ${isPl ? "Darmowa kawa" : "Free Coffee"}: <b>${opt.free_coffee ? "✅" : "❌"}</b></div>`;
     amenitiesHtml += `<div>🚽 ${isPl ? "Toaleta" : "Toilet Access"}: <b>${opt.toilet_access ? "✅" : "❌"}</b></div>`;
     amenitiesHtml += `<div>🚿 ${isPl ? "Prysznic" : "Shower"}: <b>${opt.shower ? "✅" : "❌"}</b></div>`;
@@ -431,6 +404,21 @@ function renderBriefingUI() {
                 }
             </div>
         `;
+
+    // Generowanie opcjonalnej sekcji punktów POI / pobliskich stacji
+    let poiHtml = "";
+    if (opt.nearby_attractions || opt.parking_details || opt.description) {
+        poiHtml = `
+            <div class="brief-poi" style="background:#f8fafc; border-left:3px solid #cbd5e1; padding:10px; margin-top:10px; border-radius:0 8px 8px 0; font-size:13px;">
+                <div class="poi-title" style="font-weight:600; color:#334155; margin-bottom:4px;">ℹ️ Extra Info / POI Details:</div>
+                <div class="poi-desc" style="color:#64748b;">
+                    ${opt.description ? `<p style="margin:2px 0;">${opt.description}</p>` : ""}
+                    ${opt.parking_details ? `<p style="margin:2px 0;"><b>Parking:</b> ${opt.parking_details}</p>` : ""}
+                    ${opt.nearby_attractions ? `<p style="margin:2px 0;"><b>Nearby:</b> ${opt.nearby_attractions}</p>` : ""}
+                </div>
+            </div>
+        `;
+    }
 
     accordionItem.innerHTML = `
             <div class="accordion-header" onclick="toggleAccordion(this)" style="padding: 15px; background: #f8fafc; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: bold; border-bottom: ${isFirst ? "1px solid #e2e8f0" : "none"};">
@@ -473,13 +461,15 @@ function renderBriefingUI() {
                 `
                     : ""
                 }
+                
+                ${poiHtml}
             </div>
         `;
     container.appendChild(accordionItem);
   });
 }
 
-window.toggleAccordion = function (header) {
+function toggleAccordion(header) {
   const content = header.nextElementSibling;
   const icon = header.querySelector(".accordion-icon");
 
@@ -492,7 +482,7 @@ window.toggleAccordion = function (header) {
     header.style.borderBottom = "1px solid #e2e8f0";
     icon.innerText = "▼";
   }
-};
+}
 
 function closeBriefing() {
   currentID = null;
@@ -518,7 +508,6 @@ async function initMap() {
     attribution: "© OpenStreetMap contributors",
   }).addTo(map);
 
-  // Konfiguracja klastrów z małym promieniem łączenia, zapobiegającym zlewaniu miast
   markersGroup = L.markerClusterGroup({
     maxClusterRadius: 45,
     disableClusteringAtZoom: 14,
@@ -527,7 +516,6 @@ async function initMap() {
   });
   map.addLayer(markersGroup);
 
-  // UX: Kliknięcie w mapę automatycznie chowa podpowiedzi wyszukiwarki mapy
   map.on("click", () => {
     const resultsContainer = document.getElementById("map-search-results");
     if (resultsContainer) {
@@ -544,7 +532,7 @@ async function fetchAllLocationsForMap() {
   try {
     const { data, error } = await _supabase
       .from("locations")
-      .select("id, name, category, lat, lng, description, address, region");
+      .select("id, name, category, lat, lng, description, address, region, parking_details, nearby_attractions");
 
     if (error) throw error;
     allLocations = data;
@@ -568,16 +556,13 @@ function renderMapMarkers() {
 
     if (poi.category === "parking") {
       markerColor = "#16a34a";
-      categoryText =
-        dict && dict.category_parking ? dict.category_parking : "Parking";
+      categoryText = dict && dict.category_parking ? dict.category_parking : "Parking";
     } else if (poi.category === "dropoff") {
       markerColor = "#eab308";
-      categoryText =
-        dict && dict.category_dropoff ? dict.category_dropoff : "Drop-off";
+      categoryText = dict && dict.category_dropoff ? dict.category_dropoff : "Drop-off";
     } else if (poi.category === "service" || poi.category === "ferry") {
       markerColor = "#db2777";
-      categoryText =
-        dict && dict.category_service ? dict.category_service : "Service";
+      categoryText = dict && dict.category_service ? dict.category_service : "Service";
     }
 
     const customIcon = L.divIcon({
@@ -624,9 +609,7 @@ function openBriefingFromMap(id) {
 function filterMap(type) {
   currentMapFilter = type;
 
-  document
-    .querySelectorAll(".filter-btn")
-    .forEach((btn) => btn.classList.remove("active"));
+  document.querySelectorAll(".filter-btn").forEach((btn) => btn.classList.remove("active"));
   const clickedBtn = document.getElementById(`filter-${type}`);
   if (clickedBtn) clickedBtn.classList.add("active");
 
@@ -641,29 +624,23 @@ function filterMap(type) {
 }
 
 /**
- * --- WYSZUKIWARKA (LIVE SEARCH GŁÓWNY - KLASA .main-search-input) ---
+ * --- WYSZUKIWARKA (LIVE SEARCH GŁÓWNY Z INTEGRACJĄ REGIONÓW) ---
  */
 function initSearch() {
   document.addEventListener("click", (e) => {
-    if (
-      !e.target.closest(".main-search-input") &&
-      !e.target.closest(".search-results-dropdown")
-    ) {
-      document
-        .querySelectorAll(".search-results-dropdown")
-        .forEach((wrapper) => {
-          // Ukrywamy listę podpowiedzi menu bocznego/głównego
-          if (wrapper.id !== "map-search-results") {
-            wrapper.style.display = "none";
-          }
-        });
+    if (!e.target.closest(".main-search-input") && !e.target.closest(".search-results-dropdown")) {
+      document.querySelectorAll(".search-results-dropdown").forEach((wrapper) => {
+        if (wrapper.id !== "map-search-results") {
+          wrapper.style.display = "none";
+        }
+      });
     }
   });
 }
 
 async function handleSearch(inputElement) {
   const query = inputElement.value;
-  const wrapper = inputElement.nextElementSibling; // Łapie .search-results-dropdown stojący bezpośrednio pod tym konkretnym inputem
+  const wrapper = inputElement.nextElementSibling; 
   if (!wrapper) return;
 
   if (!query || query.trim().length < 2) {
@@ -674,8 +651,19 @@ async function handleSearch(inputElement) {
 
   const cleanQuery = query.trim().toLowerCase();
 
+  let matchedRegions = [];
+  if (allLocations && allLocations.length > 0) {
+    matchedRegions = [
+      ...new Set(
+        allLocations
+          .filter(loc => loc.region && loc.region.toLowerCase().includes(cleanQuery))
+          .map(loc => loc.region)
+      )
+    ];
+  }
+
   try {
-    const { data, error } = await _supabase
+    const { data: stations, error } = await _supabase
       .from("locations")
       .select("id, name, region, category")
       .or(`name.ilike.%${cleanQuery}%,region.ilike.%${cleanQuery}%`)
@@ -684,7 +672,8 @@ async function handleSearch(inputElement) {
     if (error) throw error;
 
     wrapper.innerHTML = "";
-    if (data.length === 0) {
+    
+    if (matchedRegions.length === 0 && stations.length === 0) {
       wrapper.innerHTML = `
                 <div style="padding: 12px; font-size: 13px; color: #64748b; text-align: center;">
                     ${currentLang === "pl" ? "Brak wyników..." : "No results found..."}
@@ -695,15 +684,38 @@ async function handleSearch(inputElement) {
     }
 
     wrapper.style.display = "block";
-    data.forEach((item) => {
+
+    // 1. RENDEROWANIE ZIELONYCH REGIONÓW W DOPASOWANIACH WYSZUKIWANIA
+    matchedRegions.slice(0, 3).forEach((regionName) => {
+      const row = document.createElement("div");
+      row.className = "search-result-item highlight-green-search";
+
+      row.innerHTML = `
+                <div>
+                    <strong style="color: #16a34a; font-size: 14px;">📍 ${regionName}</strong><br>
+                    <span style="color: #15803d; font-size: 11px;">${currentLang === "pl" ? "Zobacz cały region" : "Browse entire region"}</span>
+                </div>
+                <span class="search-result-type" style="background:#dcfce7; color:#16a34a;">REGION</span>
+            `;
+
+      row.onclick = () => {
+        wrapper.style.display = "none";
+        inputElement.value = ""; 
+        currentRegion = regionName;
+        cameFromSearch = true;
+        showView("view-cities");
+        loadLocations(regionName);
+      };
+      wrapper.appendChild(row);
+    });
+
+    // 2. RENDEROWANIE POSZCZEGÓLNYCH STACJI / PUNKTÓW
+    stations.forEach((item) => {
       const row = document.createElement("div");
       row.className = "search-result-item";
 
       const dict = currentLang === "en" ? TRANSLATIONS_EN : TRANSLATIONS_PL;
-      const catLabel =
-        dict && dict.categories && dict.categories[item.category]
-          ? dict.categories[item.category]
-          : item.category;
+      const catLabel = dict && dict.categories && dict.categories[item.category] ? dict.categories[item.category] : item.category;
 
       row.innerHTML = `
                 <div>
@@ -715,7 +727,7 @@ async function handleSearch(inputElement) {
 
       row.onclick = () => {
         wrapper.style.display = "none";
-        inputElement.value = ""; // Wyczyszczenie konkretnego pola tekstowego
+        inputElement.value = ""; 
         currentID = item.id;
         cameFromSearch = true;
         showView("view-briefing");
@@ -730,31 +742,22 @@ async function handleSearch(inputElement) {
 }
 
 /**
- * --- WYSZUKIWARKA DEDYKOWANA DLA WIDOKU MAPY ---
+ * --- DOPASOWANIE WIDOKU MAPY DLA REGIONU ---
  */
 function selectRegionOnMap(regionName) {
   if (!map || !allLocations || allLocations.length === 0) return;
 
-  // Filtrujemy punkty należące wyłącznie do tego regionu, które mają poprawne współrzędne
-  const regionPoints = allLocations.filter(
-    (loc) => loc.region === regionName && loc.lat && loc.lng,
-  );
-
+  const regionPoints = allLocations.filter((loc) => loc.region === regionName && loc.lat && loc.lng);
   if (regionPoints.length === 0) return;
 
-  // Zbieramy współrzędne w tablicę formatu Leaflet [lat, lng]
-  const coordinates = regionPoints.map((loc) => [
-    parseFloat(loc.lat),
-    parseFloat(loc.lng),
-  ]);
-
-  // Używamy wbudowanej funkcji Leaflet, która automatycznie oblicza optymalny widok i przybliżenie
+  const coordinates = regionPoints.map((loc) => [parseFloat(loc.lat), parseFloat(loc.lng)]);
   const bounds = L.latLngBounds(coordinates);
   map.fitBounds(bounds, {
-    padding: [50, 50], // Bezpieczny margines od krawędzi ekranu w pikselach
-    maxZoom: 11, // Blokada, żeby nie przybliżyło zbyt blisko, jeśli w regionie jest mało punktów
+    padding: [50, 50], 
+    maxZoom: 11, 
   });
 }
+
 /**
  * --- WYSZUKIWARKA DEDYKOWANA DLA WIDOKU MAPY ---
  */
@@ -769,21 +772,24 @@ function handleMapSearch(query) {
   const q = query.toLowerCase().trim();
   resultsContainer.innerHTML = "";
 
-  // 1. Szukamy unikalnych regionów pasujących do frazy
-  const matchedRegions = [
+  let matchedRegions = [
     ...new Set(
       allLocations
         .filter((loc) => loc.region && loc.region.toLowerCase().includes(q))
-        .map((loc) => loc.region),
-    ),
+        .map((loc) => loc.region)
+    )
   ];
 
-  // 2. Szukamy pojedynczych punktów (lokalizacji) pasujących do frazy
-  const filteredPoints = allLocations.filter(
+  let filteredPoints = allLocations.filter(
     (loc) =>
       (loc.name && loc.name.toLowerCase().includes(q)) ||
-      (loc.address && loc.address.toLowerCase().includes(q)),
+      (loc.address && loc.address.toLowerCase().includes(q))
   );
+
+  if (currentRegion) {
+    matchedRegions = matchedRegions.filter(regionName => regionName === currentRegion);
+    filteredPoints = filteredPoints.filter(loc => loc.region === currentRegion);
+  }
 
   if (matchedRegions.length === 0 && filteredPoints.length === 0) {
     resultsContainer.innerHTML = `<div class="search-result-item" style="color:#64748b; font-size:13px; text-align:center;">No results found / Brak wyników</div>`;
@@ -791,11 +797,10 @@ function handleMapSearch(query) {
     return;
   }
 
-  // Dodajemy znalezione REGIONY na samą górę listy podpowiedzi
   matchedRegions.slice(0, 3).forEach((regionName) => {
     const item = document.createElement("div");
     item.className = "search-result-item";
-    item.style.background = "#f0fdf4"; // Delikatny zielony akcent dla odróżnienia regionu
+    item.style.background = "#f0fdf4"; 
 
     item.innerHTML = `
             <div>
@@ -814,7 +819,6 @@ function handleMapSearch(query) {
     resultsContainer.appendChild(item);
   });
 
-  // Dodajemy pojedyncze PUNKTY (stacje, parkingi) poniżej regionów
   filteredPoints.slice(0, 5).forEach((loc) => {
     const item = document.createElement("div");
     item.className = "search-result-item";
@@ -842,34 +846,7 @@ function handleMapSearch(query) {
 }
 
 /**
- * --- DOPASOWANIE WIDOKU MAPY DLA CAŁEGO REGIONU ---
- */
-function selectRegionOnMap(regionName) {
-  if (!map || !allLocations || allLocations.length === 0) return;
-
-  // Filtrujemy punkty należące wyłącznie do tego regionu, które mają poprawne współrzędne
-  const regionPoints = allLocations.filter(
-    (loc) => loc.region === regionName && loc.lat && loc.lng,
-  );
-
-  if (regionPoints.length === 0) return;
-
-  // Zbieramy współrzędne w tablicę formatu Leaflet [lat, lng]
-  const coordinates = regionPoints.map((loc) => [
-    parseFloat(loc.lat),
-    parseFloat(loc.lng),
-  ]);
-
-  // Używamy wbudowanej funkcji Leaflet, która automatycznie oblicza optymalny widok i przybliżenie
-  const bounds = L.latLngBounds(coordinates);
-  map.fitBounds(bounds, {
-    padding: [50, 50], // Bezpieczny margines od krawędzi ekranu w pikselach
-    maxZoom: 11, // Blokada, żeby nie przybliżyło zbyt blisko, jeśli w regionie jest mało punktów
-  });
-}
-
-/**
- * --- INTELIGENTNY ZOOM DLA KIEROWCY ---
+ * --- ZOOM DLA POJEDYNCZEJ LOKALIZACJI ---
  */
 function selectLocationOnMap(loc) {
   if (!map || !loc.lat || !loc.lng) return;
@@ -877,17 +854,9 @@ function selectLocationOnMap(loc) {
   let targetZoom = 16;
   const nameLower = loc.name.toLowerCase();
 
-  if (
-    nameLower.includes("region") ||
-    nameLower.includes("greater") ||
-    nameLower.includes("county")
-  ) {
+  if (nameLower.includes("region") || nameLower.includes("greater") || nameLower.includes("county")) {
     targetZoom = 9;
-  } else if (
-    loc.category === "parent" ||
-    nameLower.includes("city center") ||
-    nameLower.includes("hub")
-  ) {
+  } else if (loc.category === "parent" || nameLower.includes("city center") || nameLower.includes("hub")) {
     targetZoom = 12;
   }
 
@@ -899,6 +868,7 @@ function selectLocationOnMap(loc) {
     }
   });
 }
+
 /**
  * --- SOS / GPS ---
  */
@@ -924,24 +894,18 @@ function shareLocation() {
             console.error("Błąd udostępniania:", err);
           });
       } else {
-        window.open(
-          `https://wa.me/?text=SOS%20CoachWay%20Position:%20${encodeURIComponent(googleMapsUrl)}`,
-          "_blank",
-        );
+        window.open(`https://wa.me/?text=SOS%20CoachWay%20Position:%20${encodeURIComponent(googleMapsUrl)}`, "_blank");
       }
     },
     (err) => {
       console.error("Błąd geolokalizacji:", err);
-      alert(
-        currentLang === "pl"
-          ? "Nie udało się pobrać pozycji GPS."
-          : "Could not retrieve GPS position.",
-      );
+      alert(currentLang === "pl" ? "Nie udało się pobrać pozycji GPS." : "Could not retrieve GPS position.");
     },
   );
 }
+
 /**
- * --- BEZPIECZNA REJESTRACJA SERVICE WORKERA (PWA) ---
+ * --- SERVICE WORKER (PWA) ---
  */
 function initServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -949,16 +913,10 @@ function initServiceWorker() {
       navigator.serviceWorker
         .register("sw.js")
         .then((registration) => {
-          console.log(
-            "ServiceWorker zarejestrowany pomyślnie:",
-            registration.scope,
-          );
+          console.log("ServiceWorker zarejestrowany pomyślnie:", registration.scope);
         })
         .catch((error) => {
-          console.warn(
-            "Obsługa Service Worker zablokowana przez środowisko uruchomieniowe:",
-            error.message,
-          );
+          console.warn("Obsługa Service Worker zablokowana przez środowisko uruchomieniowe:", error.message);
         });
     });
   }
